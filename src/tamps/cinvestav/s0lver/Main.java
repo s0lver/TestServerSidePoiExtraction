@@ -34,9 +34,9 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
         Main app = new Main();
-        app.createGpsFixesList();
+        // app.createGpsFixesList();
+        app.readGpsFixesFile();
         app.processFixes();
-
     }
 
     private void createGpsFixesList() throws ParseException {
@@ -53,7 +53,12 @@ public class Main {
         gpsFixes.add(new GpsFix(24.846004, -98.155792, simpleDateFormat.parse("15/05/2012 14:14:44")));
         gpsFixes.add(new GpsFix(24.849789, -98.155647, simpleDateFormat.parse("15/05/2012 14:15:39")));
         gpsFixes.add(new GpsFix(24.850178, -98.155594, simpleDateFormat.parse("15/05/2012 14:16:32")));
+    }
 
+    private void readGpsFixesFile(){
+        String csvOrigin = "C:\\Users\\rafael\\desktop\\tmp\\test-server-side\\test-registros.csv";
+        SmartphoneFixesFileReader reader = new SmartphoneFixesFileReader(csvOrigin);
+        gpsFixes = reader.readFile();
     }
 
     private void processFixes() throws Exception {

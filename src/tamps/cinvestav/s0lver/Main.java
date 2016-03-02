@@ -13,7 +13,6 @@ import tamps.cinvestav.s0lver.entities.StayPoint;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -22,6 +21,8 @@ import java.util.Locale;
 import java.util.Scanner;
 
 public class Main {
+//    private final String TARGET_URL = "http://amsterdam.tamps.cinvestav.mx/~rperez/local-poi/uploadFixMontoliou.php";
+private final String TARGET_URL = "http://amsterdam.tamps.cinvestav.mx/~rperez/local-poi/uploadFixZhen.php";
     private final SimpleDateFormat sdf;
     private final String USER_AGENT = "Mozilla/5.0";
     private ArrayList<GpsFix> gpsFixes;
@@ -32,11 +33,22 @@ public class Main {
         sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.ENGLISH);
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         Main app = new Main();
         // app.createGpsFixesList();
         app.readGpsFixesFile();
-        app.processFixes();
+        try {
+            app.sendTrajectoryCreationRequest();
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+        try {
+            app.processFixes();
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
     }
 
     private void createGpsFixesList() throws ParseException {
@@ -62,8 +74,13 @@ public class Main {
     }
 
     private void processFixes() throws Exception {
+        int i = 1;
         for (GpsFix gpsFix : gpsFixes) {
+            System.out.println("Processing point " + i);
+//            Thread.sleep(600);
+            Thread.sleep(600);
             StayPoint stayPoint = sendPost(gpsFix);
+            i++;
             // System.out.print("Press enter to continue: ");
             // scanner.nextLine();
         }
@@ -72,14 +89,14 @@ public class Main {
     }
 
     private StayPoint sendPost(GpsFix gpsFix) throws Exception {
+//        System.setProperty("http.keepAlive", "false");
 
-        String url = "http://localhost/local-poi/uploadFixMontoliou.php";
 
         HttpClient client = new DefaultHttpClient();
-        HttpPost post = new HttpPost(url);
-
+        HttpPost post = new HttpPost(TARGET_URL);
         // add header
         post.setHeader("User-Agent", USER_AGENT);
+        post.setHeader("connection", "close");
 
         List<NameValuePair> urlParameters = new ArrayList<NameValuePair>();
         urlParameters.add(new BasicNameValuePair("timestamp", sdf.format(gpsFix.getTimestamp())));
@@ -102,14 +119,13 @@ public class Main {
             result.append(line);
         }
         System.out.println(result);
+        post.releaseConnection();
         return convertStringToStayPoint(result.toString());
     }
 
     private StayPoint processLastPart() throws IOException {
-        String url = "http://localhost/local-poi/uploadFixMontoliou.php";
-
         HttpClient client = new DefaultHttpClient();
-        HttpPost post = new HttpPost(url);
+        HttpPost post = new HttpPost(TARGET_URL);
 
         // add header
         post.setHeader("User-Agent", USER_AGENT);
@@ -128,6 +144,7 @@ public class Main {
             result.append(line);
         }
         System.out.println(result);
+        post.releaseConnection();
         return convertStringToStayPoint(result.toString());
     }
 
@@ -135,5 +152,33 @@ public class Main {
         if (line.equals("-1"))
             return null;
         return null;
+    }
+
+    private void sendTrajectoryCreationRequest() throws IOException {
+        HttpClient client = new DefaultHttpClient();
+        HttpPost post = new HttpPost(TARGET_URL);
+
+        // add header
+//        post.setHeader("User-Agent", USER_AGENT);
+        ArrayList<NameValuePair> parameters = new ArrayList<NameValuePair>();
+        parameters.add(new BasicNameValuePair("createTrajectory", "1"));
+        parameters.add(new BasicNameValuePair("minTime", String.valueOf(10*60*1000)));
+        parameters.add(new BasicNameValuePair("maxTime", String.valueOf(60*60*1000)));
+        parameters.add(new BasicNameValuePair("minDistance", String.valueOf(150)));
+
+        post.setEntity(new UrlEncodedFormEntity(parameters));
+        HttpResponse response = client.execute(post);
+        //System.out.println("Response Code : " + response.getStatusLine().getStatusCode());
+
+        BufferedReader rd = new BufferedReader(
+                new InputStreamReader(response.getEntity().getContent()));
+
+        StringBuffer result = new StringBuffer();
+        String line = "";
+        while ((line = rd.readLine()) != null) {
+            result.append(line);
+        }
+        System.out.println(result);
+        post.releaseConnection();
     }
 }
